@@ -1,6 +1,5 @@
 import numpy as np
 
-
 # Part (a)
 def data_matrix_bias(X: np.ndarray) -> np.ndarray:
     """Append a bias column of ones as the first column of X."""
@@ -29,7 +28,6 @@ def ridge_regression_optimize(X: np.ndarray, y: np.ndarray, lamb: float) -> np.n
 # Part (e)
 def weighted_ridge_regression_optimize(X: np.ndarray, y: np.ndarray, lambda_vec: np.ndarray) -> np.ndarray:
     """Weighted Ridge regression solution."""
-    # WRITE YOUR CODE HERE...
     X_T_dot_X = X.T @ X
     Lambda = np.diag(lambda_vec)
     add = X_T_dot_X + Lambda
@@ -41,19 +39,17 @@ def weighted_ridge_regression_optimize(X: np.ndarray, y: np.ndarray, lambda_vec:
 # Part (f)
 def predict(X: np.ndarray, w: np.ndarray) -> np.ndarray:
     """Compute predictions: y_hat = X w"""
-    # WRITE YOUR CODE HERE...
     y_hat = X @ w
-    return y_hat
+    return y_hat.ravel()
 
 # Part (f)
 def rmse(y: np.ndarray, y_hat: np.ndarray) -> float:
-    """Root mean squared error"""
-    # WRITE YOUR CODE HERE...
+    y = y.ravel()
+    y_hat = y_hat.ravel()
     expr = np.mean((y - y_hat) ** 2)
     return np.sqrt(expr)
 
 if __name__ == "__main__":
-    # Données d'exemple
     X = np.array([[0, 65], 
                   [3, 44], 
                   [8,  2]])
@@ -61,10 +57,8 @@ if __name__ == "__main__":
 
     lambda_vec = np.array([0.0, 2.0, 3.0])
 
-    # Ajouter le biais
     X_aug = data_matrix_bias(X)
 
-    # Estimation des paramètres
     lin_w       = linear_regression_optimize(X_aug, y)
     for lamb in lambda_vec:
         l2_reg  = ridge_regression_optimize(X_aug, y, lamb)   
@@ -93,6 +87,3 @@ if __name__ == "__main__":
     print("w:", weighted_reg)
     print("Prédictions:", predict_w)
     print("========================\n")
-
-    # If you want to test your functions, write your code here.
-    # If you write it outside this snippet, the autograder will fail!S
