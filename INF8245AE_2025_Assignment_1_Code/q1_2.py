@@ -27,10 +27,6 @@ def load_csv_as_array(path: str, flatten: bool = False) -> np.ndarray:
         arr = arr.ravel()
     return arr
 
-
-# Write your code here ...
-# Not autograded — function names and structure are flexible.
-
 train_x = load_csv_as_array("X_train.csv")
 test_x  = load_csv_as_array("X_test.csv")
 train_y = load_csv_as_array("y_train.csv", flatten=True)
