@@ -9,7 +9,6 @@ def data_matrix_bias(X: np.ndarray) -> np.ndarray:
 # Part (b)
 def linear_regression_optimize(X: np.ndarray, y: np.ndarray) -> np.ndarray:
     """Closed-form OLS solution"""
-    print(X)
     X_T_dot_X = X.T @ X
     inv_X = np.linalg.inv(X_T_dot_X) #? verify if inversible?
     X_T_dot_y = X.T @ y
@@ -48,42 +47,3 @@ def rmse(y: np.ndarray, y_hat: np.ndarray) -> float:
     y_hat = y_hat.ravel()
     expr = np.mean((y - y_hat) ** 2)
     return np.sqrt(expr)
-
-if __name__ == "__main__":
-    X = np.array([[0, 65], 
-                  [3, 44], 
-                  [8,  2]])
-    y = np.array([11, 22, 33])
-
-    lambda_vec = np.array([0.0, 2.0, 3.0])
-
-    X_aug = data_matrix_bias(X)
-
-    lin_w       = linear_regression_optimize(X_aug, y)
-    for lamb in lambda_vec:
-        l2_reg  = ridge_regression_optimize(X_aug, y, lamb)   
-        print("\n===== Ridge regression (λ = {}) =====".format(lamb))
-        print("w:", l2_reg)
-        predict_l2  = predict(X_aug, l2_reg)
-        print("Prédictions:", predict_l2)
- 
-    weighted_reg = weighted_ridge_regression_optimize(X_aug, y, lambda_vec)
-
-    # 
-    predict_lin = predict(X_aug, lin_w)
-    predict_w   = predict(X_aug, weighted_reg)
-
-    print("\n===== Données =====")
-    print("X_aug:\n", X_aug, "\n")
-    print("y:", y)
-    print("lambda (ridge):", lamb)
-    print("lambda_vec (weighted ridge):", lambda_vec)
-
-    print("\n===== Régression linéaire (OLS) =====")
-    print("w:", lin_w, "\n")
-    print("Prédictions:", predict_lin, "\n")
-
-    print("\n===== Weighted ridge regression (λ_vec = {}) =====".format(lambda_vec))
-    print("w:", weighted_reg)
-    print("Prédictions:", predict_w)
-    print("========================\n")
