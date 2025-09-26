@@ -2,7 +2,12 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from q2_1 import cross_validate_ridge
-from q1_2 import load_csv_as_array
+
+def load_csv_as_array(path: str, flatten: bool = False) -> np.ndarray:
+    arr = pd.read_csv(path, header=None, skiprows=1).to_numpy()
+    if flatten:
+        arr = arr.ravel()
+    return arr
 
 def plot_cv_curve(scores, title):
     lambdas = list(scores.keys())
@@ -25,10 +30,10 @@ for metric in metrics:
     best_lambda, scores = cross_validate_ridge(X_train, y_train, lambda_list, k=5, metric=metric) # added seed to have consistent results and test better
     best_score = scores[best_lambda]
     results.append({"Metric": metric, "Best λ": best_lambda, "Mean Validation Score": best_score})
-    # plot_cv_curve(scores, f"Cross-Validation ({metric})")
-    # print(f"Best λ for {metric}: {best_lambda} with score {best_score}")
-    # for lam, score in scores.items():
-    #     print(f"  λ={lam}: {metric}={score:.4f}")
+    print(f"Best λ for {metric}: {best_lambda} with score {best_score}")
+    for lam, score in scores.items():
+        print(f"  λ={lam}: {metric}={score:.4f}")
+    plot_cv_curve(scores, f"Cross-Validation ({metric})")
 
 df = pd.DataFrame(results)
 print(df)
