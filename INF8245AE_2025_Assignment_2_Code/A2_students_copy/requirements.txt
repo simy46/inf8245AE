@@ -1,0 +1,7 @@
+zipfile
+requests
+tqdm
+scikit-learn
+numpy
+pandas
+scipy
