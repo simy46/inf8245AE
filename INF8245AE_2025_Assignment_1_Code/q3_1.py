@@ -55,16 +55,3 @@ def gradient_descent_ridge(X, y, lamb=1.0, eta0=0.1, T=500, schedule="constant",
         losses.append(loss)
 
     return w, np.array(losses)
-
-
-# Remove the following line if you are not using it:
-if __name__ == "__main__":
-
-    # If you want to test your functions, write your code here.
-    # If you write it outside this snippet, the autograder will fail!
-    print("Testing gradient_descent_ridge with random data...")
-    np.random.seed(42)
-    X = np.random.randn(100, 5)
-    y = np.random.randn(100)
-    w = gradient_descent_ridge(X, y, lamb=0.1, eta0=0.01, T=1000, schedule="cosine")
-    print("Learned weights:", w)
