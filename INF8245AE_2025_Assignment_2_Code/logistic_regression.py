@@ -1,6 +1,7 @@
+import os
 import numpy as np
 from typing import Tuple
-
+import matplotlib.pyplot as plt
 np.random.seed(42)
 
 
@@ -11,9 +12,10 @@ def softmax(z: np.ndarray) -> np.ndarray:
     """
     Compute softmax probabilities for each row of z
     """
-    result = None
-
-    # Implement here
+    stable_z = z - np.max(z, axis=1, keepdims=True)
+    exp_z = np.exp(stable_z)
+    sum_exp = np.sum(exp_z, axis=1, keepdims=True)
+    result = exp_z / sum_exp
     return result
 
 
@@ -21,10 +23,9 @@ def forward_probabilities(X: np.ndarray, W: np.ndarray, b: np.ndarray) -> np.nda
     """
     Computes class probabilities P(Y|X) given parameters W, b
     """
-    # Implement here
-    logits = None
-    results = None
-    return results  # shape: [num_samples, num_classes]
+    logits = X @ W + b
+    results = softmax(logits)
+    return results
 
 
 # -----------------------
@@ -36,8 +37,13 @@ def logistic_regression_loss(
     """
     Computes cross-entropy loss with optional L2 regularization
     """
-    loss = None  # Implement here
-    loss += 0.5 * reg_lambda * np.sum(W * W)  # We add a L2 regularization term here, do not remove it
+    probabilities = forward_probabilities(X, W, b)
+    n_samples = X.shape[0]
+    true_class_probs = probabilities[np.arange(n_samples), y]
+    true_class_probs = np.clip(true_class_probs, 1e-12, 1.0)
+    cross_entropy_loss = -np.mean(np.log(true_class_probs))
+    loss = cross_entropy_loss
+    loss += 0.5 * reg_lambda * np.sum(W * W)
     return loss
 
 
@@ -50,9 +56,16 @@ def logistic_regression_grad(
     """
     Computes gradient of cross-entropy loss w.r.t W and b
     """
-    grad_W, grad_b = None, None
-    grad_W += reg_lambda * W  # Gradient of the L2 regularization term, do not remove it
-    grad_b += 0  # No regularization on bias
+    probs = forward_probabilities(X, W, b)
+    n_samples = X.shape[0]
+    n_classes = W.shape[1]
+    Y_one_hot = np.zeros((n_samples, n_classes))
+    Y_one_hot[np.arange(n_samples), y] = 1.0
+    error = probs - Y_one_hot
+    grad_W = (X.T @ error) / n_samples
+    grad_b = np.mean(error, axis=0)
+    grad_W += reg_lambda * W
+    grad_b += 0
     return grad_W, grad_b
 
 
@@ -152,4 +165,26 @@ if __name__ == "__main__":
     # Evaluate on test set
     y_test_pred = predict(X_test, W_best, b_best)
     test_acc = np.mean(y_test_pred == y_test)
+
+    plt.figure(figsize=(8, 5))
+    for reg, (_, _, val_iters, val_acc_list) in results.items():
+        plt.plot(val_iters, val_acc_list, marker='o', label=f"λ = {reg}")
+
+    plt.figure(figsize=(8, 5))
+    for reg, (_, _, val_iters, val_acc_list) in results.items():
+        plt.plot(val_iters, val_acc_list, marker='o', label=f"$\\lambda$ = {reg}")
+
+    plt.figure(figsize=(8, 5))
+    for reg, (_, _, val_iters, val_acc_list) in results.items():
+        plt.plot(val_iters, val_acc_list, marker='o', label=f"$\\lambda$ = {reg}")
+
+    plt.title("Validation accuracy vs. iterations for different regularization values")
+    plt.xlabel("Iteration")
+    plt.ylabel("Validation accuracy")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    os.makedirs("images", exist_ok=True)
+    plt.savefig("images/logreg_lambda_comparison.png")
     print(f"\nBest lambda: {best_lambda}, Test accuracy: {test_acc:.4f}")
+    plt.show()

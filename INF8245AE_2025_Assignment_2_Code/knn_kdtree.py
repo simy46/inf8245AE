@@ -44,8 +44,21 @@ class KDTree:
         if len(X_train) == 0:
             return None
 
-        # TODO : Implement the k-d tree building logic
-        return None
+        dim = depth % self.dims
+        sorted_idx = X_train[:, dim].argsort()
+        X_train = X_train[sorted_idx]
+        y_train = y_train[sorted_idx]
+        median_idx = len(X_train) // 2
+
+        node = KDNode(
+            data=X_train[median_idx],
+            label=y_train[median_idx],
+            dim=dim
+        )
+
+        node.left = self._build_tree(X_train[:median_idx], y_train[:median_idx], depth + 1)
+        node.right = self._build_tree(X_train[median_idx + 1:], y_train[median_idx + 1:], depth + 1)
+        return node
 
     def _find_nearest(self, node, query_point, best_guess=None, best_dist=np.inf):
         """
@@ -63,6 +76,24 @@ class KDTree:
             return best_guess, best_dist
 
         # TODO: Implement the nearest neighbor search logic
+        dist = np.linalg.norm(query_point - node.data)
+        if dist < best_dist:
+            best_guess = node
+            best_dist = dist
+
+        dim = node.dim
+        if query_point[dim] < node.data[dim]:
+            first_branch = node.left
+            second_branch = node.right
+        else:
+            first_branch = node.right
+            second_branch = node.left
+
+        best_guess, best_dist = self._find_nearest(first_branch, query_point, best_guess, best_dist)
+
+        if abs(query_point[dim] - node.data[dim]) < best_dist:
+            best_guess, best_dist = self._find_nearest(second_branch, query_point, best_guess, best_dist)
+
         return best_guess, best_dist
 
     def find_nearest_neighbor(self, query_point):
@@ -83,7 +114,12 @@ def kdtree_1nn_classifier(X_train, y_train, X_test):
     Returns:
         predictions: The predicted labels for the test set. np.ndarray of shape (num_test_samples,)
     """
+    tree = KDTree(X_train, y_train)
+
     predictions = []
+    for i, query_point in enumerate(X_test):
+        nearest_node = tree.find_nearest_neighbor(query_point)
+        predictions.append(nearest_node.label)
     return np.array(predictions)
 
 

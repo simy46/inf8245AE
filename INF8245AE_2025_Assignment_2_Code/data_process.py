@@ -22,9 +22,25 @@ def preprocess_mnist_data(train_file_path: str, test_file_path: str):
     X_train, y_train, X_test, y_test = None, None, None, None
     mean, std = None, None
 
-    # TODO: Implement data preprocessing steps
+    train_df = pd.read_csv(train_file_path, header=None)
+    test_df = pd.read_csv(test_file_path, header=None)
 
-    return X_train, y_train, X_test, y_test, mean, std
+    y_train = train_df.iloc[:, 0].to_numpy(dtype=np.int64)
+    y_test = test_df.iloc[:, 0].to_numpy(dtype=np.int64)
+
+    train_pixels = train_df.iloc[:, 1:].to_numpy(dtype=np.float32)
+    test_pixels = test_df.iloc[:, 1:].to_numpy(dtype=np.float32)
+
+    pixel_mean = train_pixels.mean()
+    pixel_std = train_pixels.std()
+
+    train_pixels = (train_pixels - pixel_mean) / pixel_std
+    test_pixels = (test_pixels - pixel_mean) / pixel_std
+
+    X_train = train_pixels.astype(np.float32)
+    X_test = test_pixels.astype(np.float32)
+
+    return X_train, y_train, X_test, y_test, pixel_mean, pixel_std
 
 
 def preprocess_credit_card(train_file_path: str, test_file_path: str):
@@ -52,7 +68,15 @@ def preprocess_credit_card(train_file_path: str, test_file_path: str):
             - std: (n_features,), dtype=np.float32
     """
 
-    X_train, y_train, X_test, y_test = None, None, None, None
-    mean, std = None, None
-
-    return X_train, y_train, X_test, y_test, mean, std
+    train_df = pd.read_csv(train_file_path, index_col="id")
+    test_df = pd.read_csv(test_file_path, index_col="id")
+    y_train = train_df["Class"].to_numpy(dtype=np.int64)
+    y_test = test_df["Class"].to_numpy(dtype=np.int64)
+    X_train_df = train_df.drop(columns=["Class"])
+    X_test_df = test_df.drop(columns=["Class"])
+    mean = X_train_df.mean(axis=0).to_numpy(dtype=np.float32)
+    std = X_train_df.std(axis=0, ddof=0).to_numpy(dtype=np.float32)
+    std_safe = np.where(std == 0, 1.0, std)
+    X_train = ((X_train_df.to_numpy(dtype=np.float32) - mean) / std_safe).astype(np.float32)
+    X_test = ((X_test_df.to_numpy(dtype=np.float32) - mean) / std_safe).astype(np.float32)
+    return X_train, y_train, X_test, y_test, mean, std_safe
