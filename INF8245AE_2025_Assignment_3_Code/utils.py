@@ -7,9 +7,9 @@ def avg_age_fn(X):
 
 def wamen_perc(X):
     if "sex" in X.columns:
-        return (X["sex"].str.lower().eq("female").mean()) * 100
-    else:
-        return np.nan
+        return (X["sex"].str.strip().str.lower().eq("female").mean()) * 100
+    return np.nan
+
 
 def rich_ppl_perc(y):
     if isinstance(y, pd.DataFrame):

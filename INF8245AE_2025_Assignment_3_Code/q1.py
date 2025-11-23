@@ -14,8 +14,8 @@ def downloading_data():
     # fetch dataset
     adult_income = fetch_ucirepo(id=2)
     # data (as pandas dataframes)
-    X = adult_income.data.features # shape = (48842, 14)
-    y = adult_income.data.targets # shape = (48842, 1)
+    X = adult_income.data.features # shape = (48842, 12)
+    y = adult_income.data.targets # shape = (48842, 12)
 
     # Replace '?' values with NaN
     X = X.replace('?', np.nan)
@@ -25,12 +25,14 @@ def downloading_data():
     y = y.replace('>50K.', '>50K')
 
     # metadata
-    print(adult_income.metadata)
+    # print(adult_income.metadata)
     # variable information
-    print(adult_income.variables)
+    # print(adult_income.variables)
 
     # Remove the 'fnlwgt' column
     X = X.drop(columns=['fnlwgt', 'education'])
+
+    # print(X.shape)
 
     return X, y
 
@@ -58,16 +60,24 @@ def data_exploration(X, y):
     return avg_age, women_percent, income_percent, missing_values_percent
 
 def data_imputation(X):
-    """
-    Impute the missing values in the dataset.
-    Input: X: features (pd.DataFrame) with shape = (48842, 14)
-    Output: X: features_imputed (pd.DataFrame) with shape = (48842, 14)
-    """
-    # TODO : write imputation here
-    # Hint: Use SimpleImputer with strategy='most_frequent'
-    imputer = SimpleImputer(strategy='most_frequent')
-    X_imputed = pd.DataFrame(imputer.fit_transform(X), columns=X.columns)
-    return X_imputed
+    categorical_cols = X.select_dtypes(include=['object']).columns
+    numerical_cols = X.select_dtypes(exclude=['object']).columns
+
+    imputer_cat = SimpleImputer(strategy='most_frequent')
+    imputer_num = SimpleImputer(strategy='mean')
+
+    X[categorical_cols] = pd.DataFrame(
+        imputer_cat.fit_transform(X[categorical_cols]),
+        columns=categorical_cols,
+        index=X.index
+    )
+    X[numerical_cols] = pd.DataFrame(
+        imputer_num.fit_transform(X[numerical_cols]),
+        columns=numerical_cols,
+        index=X.index
+    )
+
+    return X
 
 def feature_encoding(X):
     """
@@ -81,12 +91,12 @@ def feature_encoding(X):
     categorical_cols = X.select_dtypes(include=['object']).columns
     numerical_cols = X.select_dtypes(exclude=['object']).columns
 
-    encoder = OneHotEncoder(sparse_output=False, handle_unknown='ignore')
+    encoder = OneHotEncoder(sparse_output=False, drop=None, handle_unknown='ignore')
     encoded = encoder.fit_transform(X[categorical_cols])
 
     X_encoded = pd.DataFrame(encoded, columns=encoder.get_feature_names_out(categorical_cols))
     X_final = pd.concat([X[numerical_cols].reset_index(drop=True), X_encoded.reset_index(drop=True)], axis=1)
-
+    # print(f"Final number of features after encoding: {X_final.shape[1]}")
     return X_final
 
 
@@ -107,8 +117,7 @@ def data_preprocessing():
     # First download data
     X, y = downloading_data()
     # convert categorical to numerical
-    avg_age, women_percent, income_percent, missing_values_percent = data_exploration(X, y)
-    prettier_print(avg_age, women_percent, income_percent, missing_values_percent)
+
     X = data_imputation(X)
     X = feature_encoding(X)
     y = encode_label(y)
@@ -117,4 +126,7 @@ def data_preprocessing():
 
 if __name__ == "__main__":
     X, y = data_preprocessing()
+    # should be inside data_preprocessing, as we have to plot BEFORE encoding data
+    # avg_age, women_percent, income_percent, missing_values_percent = data_exploration(X, y)
+    # prettier_print(avg_age, women_percent, income_percent, missing_values_percent)
 
