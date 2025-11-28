@@ -34,8 +34,13 @@ class MLP(Layer):
         Parameters:
             seed (int): seed for random number generation
         """
-        # BEGIN SOLUTIONS
-        # END SOLUTIONS
+        for layer in self.layers:
+            if isinstance(layer, Dense):
+                fan_in = layer.input_size
+                fan_out = layer.output_size
+                limit = np.sqrt(6.0 / (fan_in + fan_out))
+                layer.weights = np.random.uniform(-limit, limit, (fan_in, fan_out))
+                layer.bias = np.zeros((1, fan_out))
 
             
     def forward(self, input):
@@ -48,9 +53,10 @@ class MLP(Layer):
             output (np.ndarray): output of the MLP, shape: (batch_size, output_size)
                                  (NOTE: output_size is the size of the output of the last layer)
         """
-        # BEGIN SOLUTIONS
-        pass
-        # END SOLUTIONS
+        output = input
+        for layer in self.layers:
+            output = layer.forward(output)
+        return output
 
     def backward(self, output_grad):
         """
@@ -60,10 +66,11 @@ class MLP(Layer):
         Returns:
             input_grad (np.ndarray): gradient of the input of the MLP (dx)
         """
-        # BEGIN SOLUTIONS
-        pass
-        # END SOLUTIONS
-
+        grad = output_grad
+        for layer in reversed(self.layers):
+            grad = layer.backward(grad)
+        return grad
+    
     def update(self, learning_rate):
         """
         Update the MLP parameters. Normally, this is done by using the
@@ -74,6 +81,6 @@ class MLP(Layer):
             learning_rate (float): learning rate used for updating
         """
         # assumes self.backward() function has been called before
-        # BEGIN SOLUTIONS
-        pass
-        # END SOLUTIONS
+        for layer in self.layers:
+            if isinstance(layer, Dense):
+                layer.update(learning_rate)

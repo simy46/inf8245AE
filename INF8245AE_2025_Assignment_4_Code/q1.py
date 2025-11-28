@@ -124,10 +124,9 @@ class Dense(Layer):
         ## RESET GLOBAL SEED
         ## Do not modify this for reproducibility
         np.random.seed(33)
-
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        border_limit = np.sqrt(6.0 / (self.input_size + self.output_size))
+        self.weights = np.random.uniform(-border_limit, border_limit, (self.input_size, self.output_size))
+        self.bias = np.zeros((1, self.output_size))
 
     def forward(self, x):
         """
@@ -139,9 +138,8 @@ class Dense(Layer):
         """
         assert self.weights is not None, "Weights must be initialized before forward pass."
         assert self.bias is not None, "Bias must be initialized before forward pass."
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        self.x_cache = x
+        return x @ self.weights + self.bias
 
     def backward(self, output_grad):
         """
@@ -159,9 +157,10 @@ class Dense(Layer):
         """
         assert self.weights is not None, "Weights must be initialized before backward pass."
         assert self.bias is not None, "Bias must be initialized before backward pass."
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        x = self.x_cache
+        self.weights_grad = x.T @ output_grad
+        self.bias_grad = np.sum(output_grad, axis=0, keepdims=True)
+        return output_grad @ self.weights.T
 
     def update(self, learning_rate):
         """
@@ -179,9 +178,8 @@ class Dense(Layer):
         assert self.bias is not None, "Bias must be initialized before update."
         assert self.weights_grad is not None, "Weights gradients must be computed before update."
         assert self.bias_grad is not None, "Bias gradients must be computed before update."
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        self.weights = self.weights - learning_rate * self.weights_grad
+        self.bias = self.bias - learning_rate * self.bias_grad
 
 """
 ## **Question 1.2: Activation and Loss Layers (30 points)**
@@ -200,9 +198,11 @@ class SoftmaxLayer(Layer):
         Returns:
             output (np.ndarray): output of the layer, shape: (batch_size, input_size)
         """
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        shifted_inputs = x - np.max(x, axis=1, keepdims=True)
+        exponentiated_inputs = np.exp(shifted_inputs)
+        normalization_factors = np.sum(exponentiated_inputs, axis=1, keepdims=True)
+        self.out = exponentiated_inputs / normalization_factors
+        return self.out
 
     def backward(self, output_grad):
         """
@@ -212,9 +212,14 @@ class SoftmaxLayer(Layer):
         Returns:
             input_grad (np.ndarray): gradient of the input of the layer (dx), shape: (batch_size, input_size)
         """
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        softmax_outputs = self.out
+        batch_size, vector_dim = softmax_outputs.shape
+        input_grad = np.zeros_like(output_grad)
+        for i in range(batch_size):
+            output_vector = softmax_outputs[i].reshape(-1, 1)
+            jacobian_mat = np.diagflat(output_vector) - output_vector @ output_vector.T
+            input_grad[i] = jacobian_mat @ output_grad[i]
+        return input_grad
 
 
 class TanhLayer(Layer):
@@ -230,9 +235,10 @@ class TanhLayer(Layer):
         Returns:
             output (np.ndarray): output of the layer, shape: (batch_size, input_size)
         """
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        exp_x = np.exp(x)
+        exp_negative_x = np.exp(-x)
+        self.out = (exp_x - exp_negative_x) / (exp_x + exp_negative_x)
+        return self.out
 
     def backward(self, output_grad):
         """
@@ -242,9 +248,7 @@ class TanhLayer(Layer):
         Returns:
             input_grad (np.ndarray): gradient of the input of the layer (dx), shape: (batch_size, input_size)
         """
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        return output_grad * (1.0 - self.out * self.out)
 
 
 class ReLULayer(Layer):
@@ -259,9 +263,8 @@ class ReLULayer(Layer):
         Returns:
             output (np.ndarray): output of the layer, shape: (batch_size, input_size)
         """
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        self.activation_mask = (x > 0).astype(float)
+        return x * self.activation_mask
 
     def backward(self, output_grad):
         """
@@ -271,9 +274,7 @@ class ReLULayer(Layer):
         Returns:
             input_grad (np.ndarray): gradient of the input of the layer (dx), shape: (batch_size, input_size)
         """
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        return output_grad * self.activation_mask
 
 """
 ## Q1.3: Cross-Entropy Loss Layer
@@ -314,9 +315,13 @@ class CrossEntropyLossLayer(Layer):
         assert target.ndim == 1, "Target must be a 1D array."
         assert prediction.shape[0] == target.shape[0], "Batch size of prediction and target must match."
         assert ((prediction.sum(1) - 1.0) < 1e-6).all(), "Predictions must sum to 1 along the last axis."
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        self.prediction_cache = prediction
+        self.target_cache = target
+        batch_size = prediction.shape[0]
+        stable_prediction = prediction + 1e-10
+        chosen_class_probabilities = stable_prediction[np.arange(batch_size), target]
+        negative_log_likelihood = -np.log(chosen_class_probabilities)
+        return np.mean(negative_log_likelihood)
 
     def backward(self, output_grad):
         """
@@ -327,6 +332,10 @@ class CrossEntropyLossLayer(Layer):
             input_grad (np.ndarray): gradient of the input of the layer (dx), shape: (batch_size, num_classes)
                 in particular, this is the gradient of the loss w.r.t. the `prediction` input of the forward pass.
         """
-        # BEGIN SOLUTION
-        pass
-        # END SOLUTION
+        prediction = self.prediction_cache
+        target = self.target_cache
+        batch_size, num_classes = prediction.shape
+        input_grad = np.zeros_like(prediction)
+        input_grad[np.arange(batch_size), target] = -1.0 / (prediction[np.arange(batch_size), target] + 1e-10)
+        return (output_grad / batch_size) * input_grad
+

@@ -1,3 +1,4 @@
+import os
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -35,6 +36,10 @@ where **ARGS are the arguments to the script. The arguments are as follows:
 Example:
     python fmnist.py --model custom --batch_size 128 --lr 0.001 --epochs 20 --val-perc 0.2 --plot
 """
+
+FIRST_HIDDEN = 256      # change here: 8, 16, 64, 1024 || DEFAULT : 256
+SECOND_HIDDEN = 64       # change here: 8, 16, 64, 1024 || DEFAULT : 128
+REMOVE_SECOND = False   # change to True for experiment 3
 
 ## SET GLOBAL SEED
 ## Do not modify this for reproducibility
@@ -100,7 +105,7 @@ class PytorchMLPFashionMNIST(nn.Module):
         self,
         input_size=28*28,
         hidden_size1=256,
-        hidden_size2=128,
+        hidden_size2: int | None =128,
         output_size=10
     ):
         """
@@ -166,18 +171,18 @@ class PytorchMLPFashionMNIST(nn.Module):
         train_loss = running_loss / len(data.train_loader)
 
         # Validate
+                # Validate
         if data.val_perc is not None and data.val_perc > 0:
             correct = 0
             total = 0
             with torch.no_grad():
                 for images, labels in data.val_loader:
-                    labels = labels.numpy()
-                    outputs = self(images)
-                    outputs = outputs.detach().numpy()
-                    predicted = np.argmax(outputs, axis=1)
-                    total += labels.shape[0]
+                    outputs = self(images)                  # logits
+                    predicted = outputs.argmax(dim=1)       # (batch_size,)
+                    total += labels.size(0)
                     correct += (predicted == labels).sum().item()
             val_accuracy = correct / total
+
 
         return train_loss, val_accuracy
 
@@ -193,21 +198,20 @@ class PytorchMLPFashionMNIST(nn.Module):
         total = 0
         with torch.no_grad():
             for images, labels in data.test_loader:
-                labels = labels.numpy()
-                outputs = self(images)
-                outputs = outputs.detach().numpy()
-                predicted = np.argmax(outputs, axis=1)
-                total += labels.shape[0]
+                outputs = self(images)                  # logits
+                predicted = outputs.argmax(dim=1)       # (batch_size,)
+                total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
-        return correct/total
+        return correct / total
+
 
 class CustomMLPFashionMNIST(Layer):
     def __init__(
         self,
         input_size=28*28,
         hidden_size1=256,
-        hidden_size2=128,
+        hidden_size2 : int | None =128,
         output_size=10
     ):
         super(CustomMLPFashionMNIST, self).__init__()
@@ -221,6 +225,8 @@ class CustomMLPFashionMNIST(Layer):
         ])
 
     def forward(self, x):
+        if hasattr(x, "numpy"):
+            x = x.numpy()
         x = x.reshape(x.shape[0], -1)
         return self.layers(x)
 
@@ -347,6 +353,46 @@ def plot(
     
     plt.show()
 
+def plot_combined(all_results, title="Combined Training Curves", lr=None, extra_tag=""):
+    models = list(all_results.keys())
+    epochs = len(all_results[models[0]]["loss"])
+
+    os.makedirs("images", exist_ok=True)
+    model_tag = "_".join(models)
+    lr_tag = f"_lr{lr}".replace(".", "p") if lr is not None else ""
+    extra = f"_{extra_tag}" if extra_tag != "" else ""
+    filename = f"combined_{model_tag}{lr_tag}{extra}.png"
+    save_path = os.path.join("images", filename)
+    fig, axes = plt.subplots(1, 2, figsize=(15, 5))
+    for m in models:
+        axes[0].plot(
+            np.arange(1, epochs+1),
+            all_results[m]["loss"],
+            label=m
+        )
+    axes[0].set_title("Training Loss")
+    axes[0].set_xlabel("Epoch")
+    axes[0].set_ylabel("Loss")
+    axes[0].legend()
+    axes[0].grid()
+
+    for m in models:
+        axes[1].plot(
+            np.arange(1, epochs+1),
+            all_results[m]["acc"],
+            label=m
+        )
+    axes[1].set_title("Validation Accuracy")
+    axes[1].set_xlabel("Epoch")
+    axes[1].set_ylabel("Accuracy")
+    axes[1].legend()
+    axes[1].grid()
+
+    plt.suptitle(title)
+    plt.savefig(save_path, dpi=300, bbox_inches="tight")
+    print(f"[SAVED] {save_path}")
+    plt.show()
+
 
 if __name__ == '__main__':
     # pip install matplotlib tqdm torchvision torch
@@ -381,12 +427,44 @@ if __name__ == '__main__':
     # initialize the dataset
     dataset = FashionMNIST(batch_size=batch_size, val_perc=val_perc)
 
+    res = {
+        "pytorch": {"loss": [], "acc": []},
+        "custom": {"loss": [], "acc": []}
+    }
+
     # train models
     for mod in args.models:
         if mod == 'pytorch':
-            model = PytorchMLPFashionMNIST()
-        else:
-            model = CustomMLPFashionMNIST()
+            if REMOVE_SECOND:
+                model = PytorchMLPFashionMNIST(
+                    input_size=784,
+                    hidden_size1=FIRST_HIDDEN,
+                    hidden_size2=10,   # temporary
+                    output_size=10
+                )
+            else:
+                model = PytorchMLPFashionMNIST(
+                    input_size=784,
+                    hidden_size1=FIRST_HIDDEN,
+                    hidden_size2=SECOND_HIDDEN,
+                    output_size=10
+                )
+
+        else:  # custom MLP
+            if REMOVE_SECOND:
+                model = CustomMLPFashionMNIST(
+                    input_size=784,
+                    hidden_size1=FIRST_HIDDEN,
+                    hidden_size2=10,   # temporary
+                    output_size=10
+                )
+            else:
+                model = CustomMLPFashionMNIST(
+                    input_size=784,
+                    hidden_size1=FIRST_HIDDEN,
+                    hidden_size2=SECOND_HIDDEN,
+                    output_size=10
+                )
         
         # train model
         pbar = tqdm(
@@ -398,6 +476,9 @@ if __name__ == '__main__':
         train_losses = []
         val_accuracies = []
 
+        import time
+        start_time = time.time()
+
         ## Training loop
         for epoch in pbar:
             train_loss, val_acc = model.train(dataset, lr=lr)
@@ -407,15 +488,23 @@ if __name__ == '__main__':
             )
             train_losses.append(train_loss)
             val_accuracies.append(val_acc)
+
+        end_time = time.time()
+        train_time = end_time - start_time
             
         test_acc = model.test(dataset)
 
         ## Print the test accuracy
         print(f'[{mod.upper()}] Test accuracy: {test_acc:.2%}')
+        res[mod]["loss"] = train_losses
+        res[mod]["acc"] = val_accuracies
 
         ## Plot the training loss and accuracy
-        if args.plot:
-            plot(
-                train_losses, val_accuracies,
-                title=f'[{mod.upper()}] Training Loss and Validation Accuracy'
-            )
+        # if args.plot:
+        #     plot(
+        #         train_losses, val_accuracies,
+        #         title=f'[{mod.upper()}] Training Loss and Validation Accuracy'
+        #     )
+
+    if args.plot:
+        plot_combined(res, title="custum mlp vs pytorchA")
